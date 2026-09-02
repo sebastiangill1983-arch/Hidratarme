@@ -29,3 +29,21 @@ self.addEventListener("fetch", (event) => {
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
 });
+
+// ---------- Push notifications reales (llegan aunque la app esté cerrada) ----------
+self.addEventListener("push", (event) => {
+  let data = { title: "💧 Hora de hidratarte", body: "No te olvides de tomar agua." };
+  try {
+    if (event.data) data = event.data.json();
+  } catch (e) {
+    // si no viene como JSON, usamos el default
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "icons/icon-192.png",
+      badge: "icons/icon-192.png",
+    })
+  );
+});
