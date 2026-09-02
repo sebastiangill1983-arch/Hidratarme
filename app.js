@@ -2,6 +2,16 @@
 const STORAGE_KEY = "hidratapp_state";
 const RING_CIRCUMFERENCE = 552.9; // 2 * PI * 88
 
+// URL del backend de notificaciones push (Render).
+const BACKEND_URL = "https://hidratapp-backend.onrender.com";
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
 function loadState() {
   const raw = localStorage.getItem(STORAGE_KEY);
   return raw ? JSON.parse(raw) : null;
@@ -98,6 +108,12 @@ function showMain() {
   mainScreen.classList.remove("hidden");
   renderMain();
   scheduleReminders();
+
+  if ("Notification" in window && Notification.permission === "granted") {
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.ready.then(() => subscribeToPush());
+    }
+  }
 }
 
 // ---------- Render ----------
@@ -161,6 +177,7 @@ saveSettingsBtn.addEventListener("click", () => {
   saveState(state);
   renderMain();
   scheduleReminders();
+  subscribeToPush(); // actualiza la configuración en el servidor de push
   settingsModal.classList.add("hidden");
 });
 
@@ -173,9 +190,15 @@ resetDayBtn.addEventListener("click", () => {
 });
 
 // ---------- Recordatorios ----------
-function requestNotificationPermission() {
+async function requestNotificationPermission() {
   if ("Notification" in window && Notification.permission === "default") {
-    Notification.requestPermission();
+    await Notification.requestPermission();
+  }
+  if (Notification.permission === "granted") {
+    if (navigator.serviceWorker) {
+      await navigator.serviceWorker.ready;
+    }
+    await subscribeToPush();
   }
 }
 
@@ -190,12 +213,15 @@ function isWithinWorkHours() {
   return now >= start && now <= end;
 }
 
+let pushIsActive = false;
+
 function scheduleReminders() {
   if (reminderTimer) clearInterval(reminderTimer);
 
   const intervalMs = state.intervalMinutes * 60 * 1000;
   reminderTimer = setInterval(() => {
     if (!isWithinWorkHours()) return;
+    if (pushIsActive) return; // el servidor ya se encarga, evitamos duplicar
     sendReminder();
   }, intervalMs);
 }
@@ -220,12 +246,58 @@ function sendReminder() {
   }
 }
 
-// ---------- Service worker ----------
+// ---------- Service worker + Push real ----------
+let swRegistration = null;
+
 function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(() => {
-      // Falla silenciosa: la app sigue funcionando sin SW (sin notificaciones enriquecidas)
+    navigator.serviceWorker
+      .register("sw.js")
+      .then((reg) => {
+        swRegistration = reg;
+      })
+      .catch(() => {
+        // Falla silenciosa: la app sigue funcionando sin SW (sin notificaciones enriquecidas)
+      });
+  }
+}
+
+async function subscribeToPush() {
+  if (!swRegistration || !("PushManager" in window)) return;
+  if (Notification.permission !== "granted") return;
+
+  try {
+    const keyRes = await fetch(`${BACKEND_URL}/vapid-public-key`);
+    const { publicKey } = await keyRes.json();
+
+    let subscription = await swRegistration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await swRegistration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+    }
+
+    await fetch(`${BACKEND_URL}/subscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subscription,
+        settings: {
+          name: state.name,
+          goalMl: state.goalMl,
+          startHour: state.startHour,
+          endHour: state.endHour,
+          intervalMinutes: state.intervalMinutes,
+        },
+      }),
     });
+
+    pushIsActive = true;
+  } catch (e) {
+    // Si el backend no está disponible, la app sigue funcionando con el recordatorio local
+    pushIsActive = false;
+    console.warn("No se pudo suscribir a push:", e);
   }
 }
 
