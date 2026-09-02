@@ -12,6 +12,27 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
 
+function arrayBufferToBase64Url(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+// Construye el JSON de la suscripción a mano: en algunos navegadores (Safari/iOS)
+// el JSON.stringify automático de una PushSubscription no serializa bien las claves.
+function subscriptionToJSON(subscription) {
+  return {
+    endpoint: subscription.endpoint,
+    keys: {
+      p256dh: arrayBufferToBase64Url(subscription.getKey("p256dh")),
+      auth: arrayBufferToBase64Url(subscription.getKey("auth")),
+    },
+  };
+}
+
 function loadState() {
   const raw = localStorage.getItem(STORAGE_KEY);
   return raw ? JSON.parse(raw) : null;
@@ -282,7 +303,7 @@ async function subscribeToPush() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        subscription,
+        subscription: subscriptionToJSON(subscription),
         settings: {
           name: state.name,
           goalMl: state.goalMl,
