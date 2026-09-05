@@ -10,33 +10,28 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
   <!-- Pantalla de bienvenida (primera vez) -->
   <section id="onboarding" class="screen">
     <div class="onboarding-card">
       <p class="eyebrow">Antes de arrancar</p>
       <h1>¿A quién acompañamos hoy?</h1>
-
       <label for="nameInput">Nombre</label>
       <input id="nameInput" type="text" placeholder="Ej: Martín" autocomplete="off">
-
+      <label for="weightInput">Peso (kg)</label>
+      <input id="weightInput" type="number" placeholder="Ej: 70" min="30" max="250" step="1">
+      <p class="hint" id="weightHint">Calculamos una meta sugerida a partir de tu peso (35 ml por kg).</p>
       <label for="goalInput">Meta diaria de agua (ml)</label>
       <input id="goalInput" type="number" placeholder="Ej: 2000" min="200" step="50">
-      <p class="hint">Usá el valor que te indicó tu médico, no un cálculo genérico.</p>
-
+      <p class="hint">Se completa sola con tu peso, pero podés ajustarla (por ejemplo si tenés una indicación médica distinta).</p>
       <label for="startHour">Jornada laboral — desde</label>
       <input id="startHour" type="time" value="09:00">
-
       <label for="endHour">hasta</label>
       <input id="endHour" type="time" value="18:00">
-
       <label for="intervalInput">Recordar cada (minutos)</label>
       <input id="intervalInput" type="number" value="60" min="15" step="5">
-
       <button id="startBtn" class="btn-primary">Empezar</button>
     </div>
   </section>
-
   <!-- Pantalla principal -->
   <section id="main" class="screen hidden">
     <header class="topbar">
@@ -46,7 +41,6 @@
       </div>
       <button id="settingsBtn" class="icon-btn" aria-label="Configuración">⚙</button>
     </header>
-
     <div class="ring-wrap">
       <svg viewBox="0 0 200 200" class="ring">
         <circle cx="100" cy="100" r="88" class="ring-bg"/>
@@ -58,41 +52,33 @@
         <span class="ring-goal">de <span id="goalMl">0</span> ml</span>
       </div>
     </div>
-
     <div class="quick-add">
       <button class="qty-btn" data-ml="200">+200</button>
       <button class="qty-btn" data-ml="300">+300</button>
       <button class="qty-btn" data-ml="500">+500</button>
       <button id="customBtn" class="qty-btn qty-custom">Otra cantidad</button>
     </div>
-
     <p class="status" id="statusMsg"></p>
-
     <footer class="foot-note">
       Recordatorios activos de <span id="foot-start">—</span> a <span id="foot-end">—</span>, cada <span id="foot-interval">—</span> min.
     </footer>
   </section>
-
   <!-- Modal configuración -->
   <div id="settingsModal" class="modal hidden">
     <div class="modal-card">
       <h2>Configuración</h2>
-
       <label for="editName">Nombre</label>
       <input id="editName" type="text">
-
+      <label for="editWeight">Peso (kg)</label>
+      <input id="editWeight" type="number" min="30" max="250" step="1">
       <label for="editGoal">Meta diaria (ml)</label>
       <input id="editGoal" type="number" min="200" step="50">
-
       <label for="editStart">Jornada — desde</label>
       <input id="editStart" type="time">
-
       <label for="editEnd">hasta</label>
       <input id="editEnd" type="time">
-
       <label for="editInterval">Recordar cada (minutos)</label>
       <input id="editInterval" type="number" min="15" step="5">
-
       <div class="modal-actions">
         <button id="resetDayBtn" class="btn-secondary">Reiniciar consumo de hoy</button>
         <button id="saveSettingsBtn" class="btn-primary">Guardar</button>
@@ -100,7 +86,6 @@
       <button id="closeSettingsBtn" class="btn-text">Cerrar</button>
     </div>
   </div>
-
   <script src="app.js"></script>
 </body>
 </html>
