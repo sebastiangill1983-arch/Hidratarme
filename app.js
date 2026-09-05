@@ -81,6 +81,9 @@ const footStart = document.getElementById("foot-start");
 const footEnd = document.getElementById("foot-end");
 const footInterval = document.getElementById("foot-interval");
 
+const reminderToggleBtn = document.getElementById("reminderToggleBtn");
+const reminderStatusLabel = document.getElementById("reminderStatusLabel");
+
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsModal = document.getElementById("settingsModal");
 const closeSettingsBtn = document.getElementById("closeSettingsBtn");
@@ -154,6 +157,7 @@ startBtn.addEventListener("click", () => {
     startHour: startHourInput.value || "09:00",
     endHour: endHourInput.value || "18:00",
     intervalMinutes: parseInt(intervalInput.value, 10) || 60,
+    remindersEnabled: true,
     lastDay: todayKey(),
   };
   saveState(state);
@@ -175,9 +179,31 @@ function showMain() {
   }
 }
 
+// ---------- Toggle de recordatorios (on/off) ----------
+function renderReminderToggle() {
+  const enabled = state.remindersEnabled !== false; // por compatibilidad con estados guardados antes de este cambio
+  reminderToggleBtn.setAttribute("aria-checked", enabled ? "true" : "false");
+  reminderStatusLabel.textContent = enabled ? "Recordatorios activos" : "Recordatorios pausados";
+}
+
+reminderToggleBtn.addEventListener("click", () => {
+  state.remindersEnabled = !(state.remindersEnabled !== false);
+  saveState(state);
+  renderReminderToggle();
+
+  if (state.remindersEnabled) {
+    scheduleReminders();
+  } else if (reminderTimer) {
+    clearInterval(reminderTimer); // corta también el recordatorio local, no solo el push
+  }
+
+  subscribeToPush(); // avisa al backend del nuevo estado para que no siga mandando push
+});
+
 // ---------- Render ----------
 function renderMain() {
   userNameEl.textContent = state.name;
+  renderReminderToggle();
   currentMlEl.textContent = state.currentMl;
   goalMlEl.textContent = state.goalMl;
 
@@ -279,9 +305,11 @@ let pushIsActive = false;
 
 function scheduleReminders() {
   if (reminderTimer) clearInterval(reminderTimer);
+  if (state.remindersEnabled === false) return; // apagado por el usuario, no programamos nada
 
   const intervalMs = state.intervalMinutes * 60 * 1000;
   reminderTimer = setInterval(() => {
+    if (state.remindersEnabled === false) return;
     if (!isWithinWorkHours()) return;
     if (pushIsActive) return; // el servidor ya se encarga, evitamos duplicar
     sendReminder();
@@ -352,6 +380,7 @@ async function subscribeToPush() {
           startHour: state.startHour,
           endHour: state.endHour,
           intervalMinutes: state.intervalMinutes,
+          remindersEnabled: state.remindersEnabled !== false,
         },
       }),
     });
