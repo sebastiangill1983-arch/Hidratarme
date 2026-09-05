@@ -1,6 +1,7 @@
 // ---------- Estado ----------
 const STORAGE_KEY = "hidratapp_state";
 const RING_CIRCUMFERENCE = 552.9; // 2 * PI * 88
+const ML_PER_KG = 35; // fórmula usada para sugerir la meta diaria a partir del peso
 
 // URL del backend de notificaciones push (Render).
 const BACKEND_URL = "https://hidratapp-backend.onrender.com";
@@ -46,6 +47,10 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
+function suggestedGoalMl(weightKg) {
+  return Math.round(weightKg * ML_PER_KG);
+}
+
 let state = loadState();
 
 // Si cambió el día, reiniciamos el consumo pero mantenemos la config
@@ -60,6 +65,7 @@ const onboardingScreen = document.getElementById("onboarding");
 const mainScreen = document.getElementById("main");
 
 const nameInput = document.getElementById("nameInput");
+const weightInput = document.getElementById("weightInput");
 const goalInput = document.getElementById("goalInput");
 const startHourInput = document.getElementById("startHour");
 const endHourInput = document.getElementById("endHour");
@@ -82,12 +88,42 @@ const saveSettingsBtn = document.getElementById("saveSettingsBtn");
 const resetDayBtn = document.getElementById("resetDayBtn");
 
 const editName = document.getElementById("editName");
+const editWeight = document.getElementById("editWeight");
 const editGoal = document.getElementById("editGoal");
 const editStart = document.getElementById("editStart");
 const editEnd = document.getElementById("editEnd");
 const editInterval = document.getElementById("editInterval");
 
 let reminderTimer = null;
+
+// Mientras el usuario no haya tocado la meta a mano, la recalculamos sola
+// cada vez que cambia el peso. Si el usuario edita goalInput directamente,
+// dejamos de tocarla (para no pisar un valor indicado por su médico, por ej.).
+let goalTouchedManually = false;
+
+goalInput.addEventListener("input", () => {
+  goalTouchedManually = true;
+});
+
+weightInput.addEventListener("input", () => {
+  const weight = parseFloat(weightInput.value);
+  if (weight > 0 && !goalTouchedManually) {
+    goalInput.value = suggestedGoalMl(weight);
+  }
+});
+
+let editGoalTouchedManually = false;
+
+editGoal.addEventListener("input", () => {
+  editGoalTouchedManually = true;
+});
+
+editWeight.addEventListener("input", () => {
+  const weight = parseFloat(editWeight.value);
+  if (weight > 0 && !editGoalTouchedManually) {
+    editGoal.value = suggestedGoalMl(weight);
+  }
+});
 
 // ---------- Inicio ----------
 function init() {
@@ -102,15 +138,17 @@ function init() {
 
 startBtn.addEventListener("click", () => {
   const name = nameInput.value.trim();
+  const weight = parseFloat(weightInput.value);
   const goal = parseInt(goalInput.value, 10);
 
-  if (!name || !goal || goal <= 0) {
-    alert("Completá tu nombre y una meta diaria válida.");
+  if (!name || !weight || weight <= 0 || !goal || goal <= 0) {
+    alert("Completá tu nombre, tu peso y una meta diaria válida.");
     return;
   }
 
   state = {
     name,
+    weightKg: weight,
     goalMl: goal,
     currentMl: 0,
     startHour: startHourInput.value || "09:00",
@@ -178,10 +216,12 @@ function addWater(ml) {
 // ---------- Configuración ----------
 settingsBtn.addEventListener("click", () => {
   editName.value = state.name;
+  editWeight.value = state.weightKg || "";
   editGoal.value = state.goalMl;
   editStart.value = state.startHour;
   editEnd.value = state.endHour;
   editInterval.value = state.intervalMinutes;
+  editGoalTouchedManually = false; // al reabrir el modal, permitimos que el peso vuelva a sugerir
   settingsModal.classList.remove("hidden");
 });
 
@@ -191,6 +231,7 @@ closeSettingsBtn.addEventListener("click", () => {
 
 saveSettingsBtn.addEventListener("click", () => {
   state.name = editName.value.trim() || state.name;
+  state.weightKg = parseFloat(editWeight.value) || state.weightKg;
   state.goalMl = parseInt(editGoal.value, 10) || state.goalMl;
   state.startHour = editStart.value || state.startHour;
   state.endHour = editEnd.value || state.endHour;
@@ -306,6 +347,7 @@ async function subscribeToPush() {
         subscription: subscriptionToJSON(subscription),
         settings: {
           name: state.name,
+          weightKg: state.weightKg,
           goalMl: state.goalMl,
           startHour: state.startHour,
           endHour: state.endHour,
