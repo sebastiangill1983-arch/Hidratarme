@@ -8,6 +8,45 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="styles.css">
+<style>
+  /* Estilos del botón on/off de recordatorios. Si ya tenés estas reglas
+     en styles.css, podés borrar este bloque y dejar solo las clases ahí. */
+  .reminders-toggle-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 4px 0 8px;
+    font-size: 0.9rem;
+  }
+  .toggle-switch {
+    position: relative;
+    width: 46px;
+    height: 26px;
+    border-radius: 999px;
+    border: none;
+    background: #ccc;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.2s ease;
+  }
+  .toggle-switch[aria-checked="true"] {
+    background: #1B4B5A;
+  }
+  .toggle-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.2s ease;
+  }
+  .toggle-switch[aria-checked="true"] .toggle-knob {
+    transform: translateX(20px);
+  }
+</style>
 </head>
 <body>
   <!-- Pantalla de bienvenida (primera vez) -->
@@ -41,6 +80,12 @@
       </div>
       <button id="settingsBtn" class="icon-btn" aria-label="Configuración">⚙</button>
     </header>
+    <div class="reminders-toggle-wrap">
+      <span id="reminderStatusLabel">Recordatorios activos</span>
+      <button id="reminderToggleBtn" class="toggle-switch" role="switch" aria-checked="true" aria-label="Activar o pausar recordatorios">
+        <span class="toggle-knob"></span>
+      </button>
+    </div>
     <div class="ring-wrap">
       <svg viewBox="0 0 200 200" class="ring">
         <circle cx="100" cy="100" r="88" class="ring-bg"/>
